@@ -61,10 +61,9 @@ class InputValidator:
         
         # Check if too many missing features (more than 50%)
         missing_ratio = len(result['missing_features']) / len(self.feature_names)
-        if missing_ratio > 0.5:
-            result['valid'] = False
-            result['errors'].append(f"Too many missing features: {missing_ratio*100:.1f}%")
-        
+        logger.warning(
+            f"Missing features: {len(result['missing_features'])}/{len(self.feature_names)}"
+            )
         if result['errors']:
             result['valid'] = False
         

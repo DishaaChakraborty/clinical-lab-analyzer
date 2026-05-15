@@ -33,59 +33,48 @@ class Predictor:
         }
     
     def predict_disease(self, features: np.ndarray) -> Dict[str, Any]:
-        """
-        Predict disease classification with robustness checks
-        
-        Handles:
-        - NaN/Inf values
-        - Out-of-range predictions
-        - Confidence scoring
-        - Fallback handling
-        """
-        
         logger.info("Predicting disease classification...")
-        
         try:
             self.prediction_stats['total_predictions'] += 1
-            
-            # Validate input
+
             if features is None or len(features) == 0:
                 return {'error': 'Invalid features provided'}
-            
-            # Check for NaN/Inf
+
             if np.any(np.isnan(features)) or np.any(np.isinf(features)):
-                # Replace with median
                 features = np.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
-            
-            # Make prediction
+
             if self.agent2_model is None:
                 return {'error': 'Disease classification model not loaded'}
-            
-            prediction = self.agent2_model.predict(features.reshape(1, -1))[0]
-            
-            # Get probability if available
+
+            # FIX DICTIONARY MODEL
+            model = self.agent2_model
+
+            if isinstance(model, dict):
+                if 'model' in model:
+                    model = model['model']
+                elif 'classifier' in model:
+                    model = model['classifier']
+                else:
+                    return {
+                        'error': 'Invalid Agent 2 model format',
+                        'status': 'failed'
+                    }
+
+            prediction = model.predict(features.reshape(1, -1))[0]
+
             confidence = 0.0
             probabilities = {}
-            
-            if hasattr(self.agent2_model, 'predict_proba'):
-                proba = self.agent2_model.predict_proba(features.reshape(1, -1))[0]
-                confidence = float(proba[int(prediction)])
-                
+
+            if hasattr(model, 'predict_proba'):
+                proba = model.predict_proba(features.reshape(1, -1))[0]
+                confidence = float(max(proba))
                 probabilities = {
                     self.disease_classes.get(i, f'Class_{i}'): float(proba[i])
                     for i in range(len(proba))
                 }
-            
+
             disease_name = self.disease_classes.get(int(prediction), 'Unknown')
-            
-            self.prediction_stats['successful'] += 1
-            self.prediction_stats['avg_confidence'] = (
-                (self.prediction_stats['avg_confidence'] * (self.prediction_stats['successful'] - 1) + confidence) /
-                self.prediction_stats['successful']
-            )
-            
-            logger.info(f"Disease prediction: {disease_name} ({confidence*100:.1f}%)")
-            
+
             return {
                 'disease_type': disease_name,
                 'confidence': round(confidence, 4),
@@ -93,10 +82,9 @@ class Predictor:
                 'all_probabilities': probabilities,
                 'status': 'success'
             }
-        
+
         except Exception as e:
-            logger.error(f"Error in disease prediction: {e}")
-            self.prediction_stats['failed'] += 1
+            logger.error(f"Error in disease prediction: {e}", exc_info=True)
             return {
                 'error': str(e),
                 'status': 'failed'
@@ -161,29 +149,38 @@ class Predictor:
             return {'error': str(e)}
     
     def assess_risk(self, features: np.ndarray) -> Dict[str, Any]:
-        """Assess health risk with confidence scoring"""
-        
         logger.info("Assessing health risk...")
-        
         try:
             if self.agent4_model is None:
                 return {'error': 'Risk assessment model not loaded'}
-            
-            # Handle NaN/Inf
+
+            model = self.agent4_model
+
+            # FIX DICTIONARY MODEL
+            if isinstance(model, dict):
+                if 'model' in model:
+                    model = model['model']
+                elif 'classifier' in model:
+                    model = model['classifier']
+                else:
+                    return {
+                        'error': 'Invalid Agent 4 model format',
+                        'status': 'failed'
+                    }
+
             if np.any(np.isnan(features)) or np.any(np.isinf(features)):
                 features = np.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
-            
-            prediction = self.agent4_model.predict(features.reshape(1, -1))[0]
-            
+
+            prediction = model.predict(features.reshape(1, -1))[0]
+
             confidence = 0.0
-            if hasattr(self.agent4_model, 'predict_proba'):
-                proba = self.agent4_model.predict_proba(features.reshape(1, -1))[0]
-                confidence = float(proba[int(prediction)])
-            
-            # Convert to risk score
+
+            if hasattr(model, 'predict_proba'):
+                proba = model.predict_proba(features.reshape(1, -1))[0]
+                confidence = float(max(proba))
+
             risk_score = int(prediction * (100 / 3))
-            
-            # Determine risk level
+
             if risk_score < 30:
                 risk_level = 'Low'
             elif risk_score < 60:
@@ -192,9 +189,7 @@ class Predictor:
                 risk_level = 'High'
             else:
                 risk_level = 'Critical'
-            
-            logger.info(f"Risk assessment: {risk_level} ({risk_score}/100)")
-            
+
             return {
                 'risk_score': risk_score,
                 'risk_level': risk_level,
@@ -202,10 +197,13 @@ class Predictor:
                 'recommendations': self._get_recommendations(risk_level),
                 'status': 'success'
             }
-        
+
         except Exception as e:
-            logger.error(f"Error in risk assessment: {e}")
-            return {'error': str(e), 'status': 'failed'}
+            logger.error(f"Error in risk assessment: {e}", exc_info=True)
+            return {
+                'error': str(e),
+                'status': 'failed'
+            }
     
     def _get_recommendations(self, risk_level: str) -> list:
         """Get recommendations based on risk level"""

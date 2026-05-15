@@ -160,6 +160,10 @@ class ModelLoader:
         """Load Agent 4 with error handling"""
         try:
             agent4_path = os.path.join(self.model_path, 'agent4_best_model.pkl')
+            if not os.path.exists(agent4_path):
+                agent4_path = os.path.join(self.model_path, 'agent4.pkl')
+            if not os.path.exists(agent4_path):
+                agent4_path = os.path.join(self.model_path, 'agent4_model.pkl')
             
             if not os.path.exists(agent4_path):
                 logger.warning(f"Agent 4 model not found: {agent4_path}")
@@ -169,11 +173,11 @@ class ModelLoader:
             try:
                 with open(agent4_path, 'rb') as f:
                     self.models['agent4'] = joblib.load(f)
-            except:
+            except Exception:
                 with open(agent4_path, 'rb') as f:
                     self.models['agent4'] = pickle.load(f)
             
-            logger.info("✓ Loaded Agent 4 (Risk Assessment)")
+            logger.info(f"✓ Loaded Agent 4 (Risk Assessment) from {os.path.basename(agent4_path)}")
             self.load_status['agent4'] = 'LOADED'
             return True
         
