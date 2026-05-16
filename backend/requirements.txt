@@ -1,6 +1,3 @@
-from config.settings import get_settings
-from config.logging_config import setup_logging
-
 # Core
 fastapi==0.104.1
 uvicorn==0.24.0
