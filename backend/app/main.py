@@ -8,9 +8,9 @@ import os
 import uuid
 
 # Import routers
-from app.routers import patients, predictions
-from app.config.settings import get_settings
-from app.config.logging_config import setup_logging
+from backend.app.routers import patients, predictions
+from backend.app.config.settings import get_settings
+from backend.app.config.logging_config import setup_logging
 
 # Setup logging
 setup_logging()
@@ -140,7 +140,7 @@ async def startup_event():
     
     try:
         # Load models
-        from app.services.model_loader import get_model_loader
+        from backend.app.services.model_loader import get_model_loader
         model_loader = get_model_loader(
             model_path=settings.MODEL_PATH,
             use_cache=settings.ENABLE_MODEL_CACHE
